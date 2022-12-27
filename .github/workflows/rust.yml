@@ -37,7 +37,7 @@ jobs:
       - name: clippy
         working-directory: ${{ matrix.pwd }}
         run: |
-          cargo clippy --all --all-targets --features runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} -- -Dwarnings
+          cargo clippy --all --all-targets --features sqlx-runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} -- -Dwarnings
       - name: rustfmt
         working-directory: ${{ matrix.pwd }}
         run: |
@@ -63,7 +63,7 @@ jobs:
       - name: cargo doc
         env:
           RUSTDOCFLAGS: "-D rustdoc::broken-intra-doc-links"
-        run: cargo doc --features runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} --no-deps
+        run: cargo doc --features sqlx-runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} --no-deps
 
   test:
     needs: check
@@ -94,9 +94,9 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all --features runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} --all-targets
+          args: --all --features sqlx-runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} --all-targets
       - name: Coverage
-        run: cargo tarpaulin --all --features runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} --all-targets -o Lcov --output-dir ./coverage
+        run: cargo tarpaulin --all --features sqlx-runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} --all-targets -o Lcov --output-dir ./coverage
       - name: Coveralls
         uses: coverallsapp/github-action@master
         with:
@@ -125,4 +125,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --features runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} --doc
+          args: --features sqlx-runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} --doc
