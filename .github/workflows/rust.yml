@@ -15,6 +15,9 @@ jobs:
 
     strategy:
       matrix:
+        runtime: [async-std, tokio, actix]
+        tls: [native-tls, rustls]
+        db: [mssql, mysql, postgres, sqlite]
         pwd:
           - .
           - examples
@@ -34,7 +37,7 @@ jobs:
       - name: clippy
         working-directory: ${{ matrix.pwd }}
         run: |
-          cargo clippy --all --all-targets --all-features -- -Dwarnings
+          cargo clippy --all --all-targets --features runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} -- -Dwarnings
       - name: rustfmt
         working-directory: ${{ matrix.pwd }}
         run: |
@@ -42,6 +45,12 @@ jobs:
 
   check-docs:
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        runtime: [async-std, tokio, actix]
+        tls: [native-tls, rustls]
+        db: [mssql, mysql, postgres, sqlite]
 
     steps:
       - uses: actions/checkout@master
@@ -54,12 +63,18 @@ jobs:
       - name: cargo doc
         env:
           RUSTDOCFLAGS: "-D rustdoc::broken-intra-doc-links"
-        run: cargo doc --all-features --no-deps
+        run: cargo doc --features runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} --no-deps
 
   test:
     needs: check
 
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        runtime: [async-std, tokio, actix]
+        tls: [native-tls, rustls]
+        db: [mssql, mysql, postgres, sqlite]
 
     steps:
       - uses: actions/checkout@master
@@ -79,9 +94,9 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all --all-features --all-targets
+          args: --all --features runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} --all-targets
       - name: Coverage
-        run: cargo tarpaulin --all --all-features --all-targets -o Lcov --output-dir ./coverage
+        run: cargo tarpaulin --all --features runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} --all-targets -o Lcov --output-dir ./coverage
       - name: Coveralls
         uses: coverallsapp/github-action@master
         with:
@@ -91,6 +106,12 @@ jobs:
     needs: check
 
     runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        runtime: [async-std, tokio, actix]
+        tls: [native-tls, rustls]
+        db: [mssql, mysql, postgres, sqlite]
 
     steps:
       - uses: actions/checkout@master
@@ -104,4 +125,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all-features --doc
+          args: --features runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} --doc
