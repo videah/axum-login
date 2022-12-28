@@ -8,6 +8,9 @@ on:
 
 env:
   CARGO_TERM_COLOR: always
+  POSTGRES_URL: postgres://postgres:postgres@localhost:5432
+  MYSQL_URL: mysql://root@localhost:3306/public
+  SQLITE_URL: sqlite://memory
 
 jobs:
   check:
@@ -17,10 +20,6 @@ jobs:
       matrix:
         runtime: [async-std, tokio, actix]
         tls: [native-tls, rustls]
-        db: [mssql, mysql, postgres, sqlite]
-        pwd:
-          - .
-          - examples
 
     steps:
       - uses: actions/checkout@master
@@ -32,25 +31,49 @@ jobs:
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
         with:
-          key: ${{ matrix.pwd }}
-          workspaces: ${{ matrix.pwd }}
+          key: .
+          workspaces: .
       - name: clippy
-        working-directory: ${{ matrix.pwd }}
+        working-directory: .
+        if: ${{ matrix.pwd == '.' }}
         run: |
-          cargo clippy --all --all-targets --features sqlx-runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} -- -Dwarnings
+          cargo clippy --all --all-targets --features sqlx-runtime-${{ matrix.runtime }}-${{ matrix.tls }},mssql,mysql,postgres,sqlite -- -Dwarnings
+      - name: clippy_examples
+        working-directory: .
+        if: ${{ matrix.pwd == 'examples' }}
+        run: |
+          cargo clippy --all --all-targets --all-features -- -Dwarnings
       - name: rustfmt
-        working-directory: ${{ matrix.pwd }}
+        working-directory: .
+        run: |
+          cargo fmt --all -- --check
+
+  check-examples:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@master
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+          profile: minimal
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: examples
+          workspaces: examples
+      - name: clippy
+        working-directory: examples
+        run: |
+          cargo clippy --all --all-targets --all-features -- -Dwarnings
+      - name: rustfmt
+        working-directory: examples
         run: |
           cargo fmt --all -- --check
 
   check-docs:
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        runtime: [async-std, tokio, actix]
-        tls: [native-tls, rustls]
-        db: [mssql, mysql, postgres, sqlite]
 
     steps:
       - uses: actions/checkout@master
@@ -63,10 +86,10 @@ jobs:
       - name: cargo doc
         env:
           RUSTDOCFLAGS: "-D rustdoc::broken-intra-doc-links"
-        run: cargo doc --features sqlx-runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} --no-deps
+        run: cargo doc --features sqlx-runtime-tokio-rustls,mssql,mysql,postgres,sqlite --no-deps
 
   test:
-    needs: check
+    needs: [check, check-examples]
 
     runs-on: ubuntu-latest
 
@@ -74,7 +97,6 @@ jobs:
       matrix:
         runtime: [async-std, tokio, actix]
         tls: [native-tls, rustls]
-        db: [mssql, mysql, postgres, sqlite]
 
     steps:
       - uses: actions/checkout@master
@@ -94,16 +116,18 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --all --features sqlx-runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} --all-targets
+          args: --features sqlx-runtime-${{ matrix.runtime }}-${{ matrix.tls }},mssql,mysql,postgres,sqlite --all-targets --manifest-path "axum-login/Cargo.toml"
       - name: Coverage
-        run: cargo tarpaulin --all --features sqlx-runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} --all-targets -o Lcov --output-dir ./coverage
+        working-directory: ./axum-login
+        run: cargo tarpaulin --features sqlx-runtime-${{ matrix.runtime }}-${{ matrix.tls }},mssql,mysql,postgres,sqlite -o Lcov --output-dir ./coverage
       - name: Coveralls
         uses: coverallsapp/github-action@master
         with:
+          path-to-lcov: ./axum-login/coverage/lcov.info
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
   test-docs:
-    needs: check
+    needs: [check, check-examples]
 
     runs-on: ubuntu-latest
 
@@ -111,7 +135,6 @@ jobs:
       matrix:
         runtime: [async-std, tokio, actix]
         tls: [native-tls, rustls]
-        db: [mssql, mysql, postgres, sqlite]
 
     steps:
       - uses: actions/checkout@master
@@ -125,4 +148,33 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --features sqlx-runtime-${{ matrix.runtime }}-${{ matrix.tls }},${{ matrix.db }} --doc
+          args: --features sqlx-runtime-${{ matrix.runtime }}-${{ matrix.tls }},mssql,mysql,postgres,sqlite --doc
+  integration-tests:
+    strategy:
+      matrix:
+        database_backend:
+          - sqlite
+          - mysql
+          - postgres
+
+    needs: [check, check-examples]
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@master
+      - name: Set database URL
+        run: echo "DATABASE_URL=$(env | grep -i ${{ matrix.database_backend }}_url | cut -d "=" -f 2)" >> $GITHUB_ENV
+      - name: Setup DBs
+        run: docker-compose up -d
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          override: true
+          profile: minimal
+      - uses: Swatinem/rust-cache@v2
+      - name: Run integration tests
+        uses: actions-rs/cargo@v1
+        with:
+          command: test
+          args: --manifest-path "axum-login-tests/Cargo.toml" --features ${{ matrix.database_backend }}
