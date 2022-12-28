@@ -2,9 +2,9 @@ name: Rust
 
 on:
   push:
-    branches: ["main"]
+    branches: [ "main" ]
   pull_request:
-    branches: ["main"]
+    branches: [ "main" ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -89,7 +89,7 @@ jobs:
         run: cargo doc --features sqlx-runtime-tokio-rustls,mssql,mysql,postgres,sqlite --no-deps
 
   test:
-    needs: [check, check-examples]
+    # needs: [check, check-examples]
 
     runs-on: ubuntu-latest
 
@@ -149,6 +149,7 @@ jobs:
         with:
           command: test
           args: --features sqlx-runtime-${{ matrix.runtime }}-${{ matrix.tls }},mssql,mysql,postgres,sqlite --doc
+
   integration-tests:
     strategy:
       matrix:
