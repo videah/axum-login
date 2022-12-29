@@ -75,6 +75,11 @@ jobs:
   check-docs:
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        runtime: [async-std, tokio, actix]
+        tls: [native-tls, rustls]
+
     steps:
       - uses: actions/checkout@master
       - uses: actions-rs/toolchain@v1
@@ -86,10 +91,10 @@ jobs:
       - name: cargo doc
         env:
           RUSTDOCFLAGS: "-D rustdoc::broken-intra-doc-links"
-        run: cargo doc --features sqlx-runtime-tokio-rustls,mssql,mysql,postgres,sqlite --no-deps
+        run: cargo doc --features sqlx-runtime-${{ matrix.runtime }}-${{ matrix.tls }},mssql,mysql,postgres,sqlite --no-deps
 
   test:
-    # needs: [check, check-examples]
+    needs: [check, check-examples]
 
     runs-on: ubuntu-latest
 
@@ -178,4 +183,4 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: test
-          args: --manifest-path "axum-login-tests/Cargo.toml" --features ${{ matrix.database_backend }}
+          args: --manifest-path "axum-login-tests/Cargo.toml" --features ${{ matrix.database_backend }},sqlx-runtime-tokio-rustls
