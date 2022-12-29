@@ -16,7 +16,6 @@ axum-login = { path = "../axum-login", features = [
     "mysql",
     "postgres",
     "sqlite",
-    "sqlx-runtime-tokio-rustls"
 ] }
 sqlx = { version = "0.6.1" }
 
