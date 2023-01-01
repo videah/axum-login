@@ -35,14 +35,8 @@ jobs:
           workspaces: .
       - name: clippy
         working-directory: .
-        if: ${{ matrix.pwd == '.' }}
         run: |
           cargo clippy --all --all-targets --features sqlx-runtime-${{ matrix.runtime }}-${{ matrix.tls }},mssql,mysql,postgres,sqlite -- -Dwarnings
-      - name: clippy_examples
-        working-directory: .
-        if: ${{ matrix.pwd == 'examples' }}
-        run: |
-          cargo clippy --all --all-targets --all-features -- -Dwarnings
       - name: rustfmt
         working-directory: .
         run: |
